@@ -1,66 +1,25 @@
 version: "3.8"
 
 services:
-  tailscale:
-    image: tailscale/tailscale:stable
-    container_name: immich-tailscale
-    hostname: immich-server
-    network_mode: "service:immich-server"
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    volumes:
-      - ./tailscale:/var/lib/tailscale
-      - /dev/net/tun:/dev/net/tun
-    environment:
-      - TS_AUTHKEY=${TS_AUTHKEY}
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_EXTRA_ARGS=--advertise-tags=tag:immich
-    restart: unless-stopped
-
-  immich-server:
+  immich:
     image: ghcr.io/immich-app/immich-server:release
-    container_name: immich-server
+    container_name: immich
     command: ["start.sh", "immich"]
     env_file:
       - .env
     volumes:
-      - ${IMMICH_UPLOAD_PATH}:/usr/src/app/upload
-      - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      - redis
-      - database
+      - /srv/immich/upload:/usr/src/app/upload
     restart: unless-stopped
 
-  immich-microservices:
-    image: ghcr.io/immich-app/immich-server:release
-    container_name: immich-microservices
-    command: ["start.sh", "microservices"]
-    env_file:
-      - .env
+  tailscale:
+    image: tailscale/tailscale:stable
+    container_name: immich-tailscale
+    network_mode: "service:immich"
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
     volumes:
-      - ${IMMICH_UPLOAD_PATH}:/usr/src/app/upload
-      - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      - redis
-      - database
+      - ./ts-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    command: tailscaled
     restart: unless-stopped
-
-  redis:
-    image: redis:7
-    container_name: immich-redis
-    restart: unless-stopped
-
-  database:
-    image: postgres:14
-    container_name: immich-postgres
-    environment:
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_DATABASE_NAME}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    restart: unless-stopped
-
-volumes:
-  pgdata:
